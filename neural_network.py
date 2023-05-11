@@ -1,31 +1,3 @@
-"""
-Written by boshtannik.
-e-mail: boshtannik@gmail.com
-Inpiration got from book "Crete own neural network" by Tariq Rashid.
-The main idea was to create neural network by representing it via matricies
-and their multiplication, but I decide to walk in other way, in order to
-picture the whole architecture in the object-oriented way.
-
-The main idea was to this project - was to put basement to let further reconfiguration
-of the neural network architecture, i. e. mean to:
-    * Being able to link new neurons into the existing neural network.
-    * Cut their pieces like connections.
-    * Connect other neural networks to newly created neurons of existing neural network.
-    * Having fun.
-    * etc..
-
-What else to be expected:
-    * Being able to save neurons connections weights into file. - Done!
-    * Restore previously trained neural network connection weights from file. - Done!
-    * Run neural network predict method from command line.
-    * Support of biasses to be added into hidden layers. - Done!
-
-Hint:
-    For better perfomance - i advise to use pypy interpreter.
-    Works faster a lot!
-"""
-
-
 from math import exp
 import os
 from typing import List
@@ -34,6 +6,7 @@ import json
 
 
 PERCEPTRON_SAVE_FILE = 'perceptron.json'
+IRIS_FILE = "./iris.csv"
 
 
 class Connection:
@@ -275,86 +248,146 @@ class Perceptron:
         print(f'Average error: {total_error/len(inputs)}')
 
 
+def generate_expected_data(class_index: int, classes_count: int) -> List[float]:
+    result = []
+    for i in range(classes_count):
+        result.append(0.99 if class_index == i else 0.01)
+    return result
+
+
 def test_neural_network():
-    """
-    This is almost default hello world test case for testing
-    newly baked neural network.
-    This test simulates, how the neural network did understand
-    the logic behind XOR logic module.
-
-    The XOR logic truth table shall look like this
-    ------------------------------
-    | input 1 | input 2 | output |
-    ------------------------------
-    |    0    |    0    |    0   |
-    ------------------------------
-    |    0    |    1    |    1   |
-    ------------------------------
-    |    1    |    0    |    1   |
-    ------------------------------
-    |    1    |    1    |    0   |
-    ------------------------------
-    """
-    # Define the neural network architecture
-
-    # Smallest configuration for this task that i found is: 2, 3, 1. And one bias,
-    # connected to 2nd layer. Works in ~30% Cases. Often shits itself.
-    nn = Perceptron(layers=[2, 3, 1])
+    nn = Perceptron(layers=[4, 4, 3])
     for i in range(nn.layers.__len__() - 1):
         nn.add_bias(layer_number=i)
 
-    # Set data for training.
-    inputs = [
-        [0.0, 0.0],
-        [0.0, 1.0],
-        [1.0, 0.0],
-        [1.0, 1.0]
-    ]
-
-    expected_values = [
-        [0.0],
-        [1.0],
-        [1.0],
-        [0.0]
-    ]
-
     # Prepare data in order (<Data to be feed in>, <Expected data to be received>)
-    train_data = list(zip(inputs, expected_values))
-
     if os.path.exists(PERCEPTRON_SAVE_FILE):
         nn.load()
+        # Set data for training.
+        with open(IRIS_FILE, "r") as f:
+            all_lines = f.readlines()
+
+        all_lines = [l.replace('\n', '') for l in all_lines]
+        all_lines = [l.replace('"', '') for l in all_lines]
+        all_lines = [l.split(',') for l in all_lines]
+        all_lines = [l for l in all_lines]
+        all_lines.pop(0) # Pops out the header text.
+
+        # Determine all available classes of data.
+        all_classes = {}
+        for l in all_lines:
+            name = l[-1]
+            if name in all_classes:
+                continue
+            all_classes[name] = len(all_classes)
+
+        # Fill all data into classified dataset (Dict).
+        train_data = {}
+        for l in all_lines:
+            name = l[-1]
+            index = all_classes[name]
+            if index not in train_data:
+                train_data[index] = list()
+
+            sepal_length, sepal_width, petal_length, petal_width = l[0], l[1], l[2], l[3]
+
+            train_data[index].append(
+                (
+                    float(sepal_length),
+                    float(sepal_width),
+                    float(petal_length),
+                    float(petal_width)
+                )
+            )
+
+        # Grab some data to test results.
+        test_data = {}
+        for each_class in all_classes.values():
+            test_data[each_class] = list()
+
+        for each_class_index, each_class_values in train_data.items():
+            test_data[each_class_index].append(each_class_values.pop(randint(0, len(each_class_values) - 1)))
+
+        for test_data_index, test_data_list in test_data.items():
+            expected_data = generate_expected_data(class_index=test_data_index, classes_count=len(all_classes))
+            for test_data_set in test_data_list:
+                results = nn.predict(inputs=test_data_set)
+                print('expected_data', expected_data)
+                print('results', results)
+                print()
     else:
-        # Train it 100000 times.
-        train_generations = 100000
+        # Set data for training.
+        with open(IRIS_FILE, "r") as f:
+            all_lines = f.readlines()
+
+        all_lines = [l.replace('\n', '') for l in all_lines]
+        all_lines = [l.replace('"', '') for l in all_lines]
+        all_lines = [l.split(',') for l in all_lines]
+        all_lines = [l for l in all_lines]
+        all_lines.pop(0) # Pops out the header text.
+
+        # Determine all available classes of data.
+        all_classes = {}
+        for l in all_lines:
+            name = l[-1]
+            if name in all_classes:
+                continue
+            all_classes[name] = len(all_classes)
+
+        # Fill all data into classified dataset (Dict).
+        train_data = {}
+        for l in all_lines:
+            name = l[-1]
+            index = all_classes[name]
+            if index not in train_data:
+                train_data[index] = list()
+
+            sepal_length, sepal_width, petal_length, petal_width = l[0], l[1], l[2], l[3]
+
+            train_data[index].append(
+                (
+                    float(sepal_length),
+                    float(sepal_width),
+                    float(petal_length),
+                    float(petal_width)
+                )
+            )
+
+        # Grab some data to test results.
+        test_data = {}
+        for each_class in all_classes.values():
+            test_data[each_class] = list()
+
+        for each_class_index, each_class_values in train_data.items():
+            test_data[each_class_index].append(each_class_values.pop(randint(0, len(each_class_values) - 1)))
+
+        print("All classes", all_classes)
+        print('all_data', train_data)
+        print('test_data', test_data)
+
+        train_generations = 10000
         for _ in range(train_generations):
-            input, expected_val = choice(train_data)
-            nn.train(input, expected_val, learning_rate=0.1)
+            for train_data_index, train_data_list in train_data.items():
+                for inputs in train_data_list:
+                    nn.train(
+                        inputs=inputs,
+                        expected_values=generate_expected_data(
+                            class_index=train_data_index,
+                            classes_count=len(all_classes)
+                        ),
+                        learning_rate=0.1
+                    )
+
+        for test_data_index, test_data_list in test_data.items():
+            expected_data = generate_expected_data(class_index=test_data_index, classes_count=len(all_classes))
+            for test_data_set in test_data_list:
+                results = nn.predict(inputs=test_data_set)
+                print('expected_data', expected_data)
+                print('results', results)
+                print()
 
     # Test the neural network
-    got_1_prediction, = nn.predict(inputs=inputs[0])
-    got_1_prediction *= 100  # Convert to percents
-    test_1_passed = got_1_prediction < 3  # Check if acrivation is less than 3%
-    print(f"Test with input data: {inputs[0]} is {'' if test_1_passed else 'NOT '}passed. with result: {got_1_prediction:.2f}% acrivation.")
-
-    got_2_prediction, = nn.predict(inputs=inputs[1])
-    got_2_prediction *= 100  # Convert to percents
-    test_2_passed = got_2_prediction > 97  # Check if acrivation is greater than 97%
-    print(f"Test with input data: {inputs[1]} is {'' if test_2_passed else 'NOT '}passed. with result: {got_2_prediction:.2f}% acrivation.")
-
-    got_3_prediction, = nn.predict(inputs=inputs[2])
-    got_3_prediction *= 100  # Convert to percents
-    test_3_passed = got_3_prediction > 97  # Check if acrivation is greater than 97%
-    print(f"Test with input data: {inputs[2]} is {'' if test_3_passed else 'NOT '}passed. with result: {got_3_prediction:.2f}% acrivation.")
-
-    got_4_prediction, = nn.predict(inputs=inputs[3])
-    got_4_prediction *= 100  # Convert to percents
-    test_4_passed = got_4_prediction < 3  # Check if acrivation is less than 3%
-    print(f"Test with input data: {inputs[3]} is {'' if test_4_passed else 'NOT '}passed. with result: {got_4_prediction:.2f}% acrivation.")
-
-    all_passed = all((test_1_passed, test_2_passed, test_3_passed, test_4_passed))
-    print(f"Finally. The neural network did{('' if all_passed else ' NOT')} pass the test", )
-
-    if not os.path.exists(PERCEPTRON_SAVE_FILE) and all_passed:
+    if not os.path.exists(PERCEPTRON_SAVE_FILE):
         nn.save()
 
 
